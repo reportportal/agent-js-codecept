@@ -30,29 +30,48 @@ for (const helperName of screenshotHelpers) {
   }
 }
 
-const defaultConfig = {
-  token: '',
-  endpoint: '',
-  projectName: '',
-  launchName: 'codeceptjs tests',
-  launchDescription: '',
-  attributes: [],
-  debug: false,
-  rerun: undefined,
-  enabled: false,
-  mode: 'DEFAULT'
+const ENV_FALLBACKS = {
+  apiKey: 'RP_API_KEY',
+  endpoint: 'RP_ENDPOINT',
+  project: 'RP_PROJECT',
+  launch: 'RP_LAUNCH',
 };
 
-const requiredFields = ['projectName', 'token', 'endpoint'];
+const requiredFields = ['apiKey', 'endpoint', 'project'];
+
+function pick(envVar, explicit, defaultValue) {
+  if (envVar) {
+    const envValue = process.env[envVar];
+    if (envValue !== undefined && envValue !== '') return envValue;
+  }
+  if (explicit !== undefined) return explicit;
+  return defaultValue;
+}
+
+function resolveConfig(config = {}) {
+  return {
+    apiKey: pick(ENV_FALLBACKS.apiKey, config.apiKey, undefined),
+    endpoint: pick(ENV_FALLBACKS.endpoint, config.endpoint, undefined),
+    project: pick(ENV_FALLBACKS.project, config.project, undefined),
+    launch: pick(ENV_FALLBACKS.launch, config.launch, 'codeceptjs tests'),
+    description: config.description !== undefined ? config.description : '',
+    attributes: config.attributes !== undefined ? config.attributes : [],
+    mode: config.mode !== undefined ? config.mode : 'DEFAULT',
+    debug: config.debug !== undefined ? config.debug : false,
+    rerun: config.rerun,
+    rerunOf: config.rerunOf,
+    restClientConfig: config.restClientConfig,
+  };
+}
 
 
 module.exports = (config) => {
-  config = Object.assign(defaultConfig, config);
+  const resolved = resolveConfig(config);
 
   for (let field of requiredFields) {
-    if (!config[field]) throw new Error(`ReportPortal config is invalid. Key ${field} is missing in config.\nRequired fields: ${requiredFields} `)
+    if (!resolved[field]) throw new Error(`ReportPortal config is invalid. Key ${field} is missing in config.\nRequired fields: ${requiredFields} `)
   }
-  
+
   let reportUrl;
   let launchObj;
   let suiteObj;
@@ -79,7 +98,7 @@ module.exports = (config) => {
       output.error(err);
       process.exit(1);
     }
-    output.print(`📋 Writing results to ReportPortal: ${config.projectName} > ${config.endpoint}`);
+    output.print(`📋 Writing results to ReportPortal: ${resolved.project} > ${resolved.endpoint}`);
 
     const outputLog = output.log;
     const outputDebug = output.debug;
@@ -253,22 +272,24 @@ module.exports = (config) => {
 
   function startLaunch(suiteTitle) {
     rpClient = new RPClient({
-      token: config.token,
-      endpoint: config.endpoint,
-      project: config.projectName,
-      debug: config.debug,
+      apiKey: resolved.apiKey,
+      endpoint: resolved.endpoint,
+      project: resolved.project,
+      launch: resolved.launch,
+      debug: resolved.debug,
+      restClientConfig: resolved.restClientConfig,
     });
 
     const options = {
-      name: config.launchName || suiteTitle,
-      description: config.launchDescription,
-      attributes: config.launchAttributes,
-      rerun: config.rerun,
-      rerunOf: config.rerunOf,
-      mode: config.mode,
+      name: resolved.launch || suiteTitle,
+      description: resolved.description,
+      attributes: resolved.attributes,
+      rerun: resolved.rerun,
+      rerunOf: resolved.rerunOf,
+      mode: resolved.mode,
     }
 
-    if (process.env.RP_LAUNCH_ID) { 
+    if (process.env.RP_LAUNCH_ID) {
       options.id = process.env.RP_LAUNCH_ID
     }
 
