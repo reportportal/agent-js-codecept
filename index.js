@@ -37,23 +37,45 @@ const ENV_FALLBACKS = {
   launch: 'RP_LAUNCH',
 };
 
+// Deprecated option names and their replacements.
+const LEGACY_OPTIONS = {
+  token: 'apiKey',
+  projectName: 'project',
+  launchName: 'launch',
+  launchDescription: 'description',
+  launchAttributes: 'attributes',
+};
+
 const requiredFields = ['apiKey', 'endpoint', 'project'];
 
-function pick(envVar, explicit, defaultValue) {
-  if (envVar) {
-    const envValue = process.env[envVar];
-    if (envValue !== undefined && envValue !== '') return envValue;
-  }
-  if (explicit !== undefined) return explicit;
+const isSet = (value) => value !== undefined && value !== '';
+
+// Explicit config wins; the env var is a fallback; empty strings count as unset.
+function pick(explicit, envVar, defaultValue) {
+  if (isSet(explicit)) return explicit;
+  if (envVar && isSet(process.env[envVar])) return process.env[envVar];
   return defaultValue;
 }
 
-function resolveConfig(config = {}) {
+// Maps deprecated names onto their replacements (a new name wins) and warns.
+function withLegacyOptions(config) {
+  const merged = { ...config };
+  Object.keys(LEGACY_OPTIONS).forEach((legacy) => {
+    if (config[legacy] === undefined) return;
+    const modern = LEGACY_OPTIONS[legacy];
+    console.warn(`Option '${legacy}' is deprecated. Use '${modern}' instead.`);
+    if (merged[modern] === undefined) merged[modern] = config[legacy];
+  });
+  return merged;
+}
+
+function resolveConfig(rawConfig = {}) {
+  const config = withLegacyOptions(rawConfig);
   return {
-    apiKey: pick(ENV_FALLBACKS.apiKey, config.apiKey, undefined),
-    endpoint: pick(ENV_FALLBACKS.endpoint, config.endpoint, undefined),
-    project: pick(ENV_FALLBACKS.project, config.project, undefined),
-    launch: pick(ENV_FALLBACKS.launch, config.launch, 'codeceptjs tests'),
+    apiKey: pick(config.apiKey, ENV_FALLBACKS.apiKey, undefined),
+    endpoint: pick(config.endpoint, ENV_FALLBACKS.endpoint, undefined),
+    project: pick(config.project, ENV_FALLBACKS.project, undefined),
+    launch: pick(config.launch, ENV_FALLBACKS.launch, 'codeceptjs tests'),
     description: config.description !== undefined ? config.description : '',
     attributes: config.attributes !== undefined ? config.attributes : [],
     mode: config.mode !== undefined ? config.mode : 'DEFAULT',

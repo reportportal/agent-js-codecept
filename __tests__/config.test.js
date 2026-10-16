@@ -165,7 +165,7 @@ describe('agent-js-codecept — EPMRPP-122056 config resolution', () => {
   });
 
   // ------------------------------------------------------------------------
-  // Required-field validation (AC #2, AC #6, breaking-rename behaviour)
+  // Required-field validation (AC #2, AC #6, deprecated names)
   // ------------------------------------------------------------------------
 
   describe('required-field validation', () => {
@@ -203,14 +203,14 @@ describe('agent-js-codecept — EPMRPP-122056 config resolution', () => {
       expect(() => factory({ apiKey: 'k', endpoint: 'https://rp/api/v1', project: 'proj' })).not.toThrow();
     });
 
-    test('legacy "token" is NOT an alias for apiKey (hard break)', () => {
+    test('deprecated "token" satisfies the apiKey check', () => {
       const { factory } = loadPlugin();
-      expect(() => factory({ token: 'legacy-token', endpoint: 'https://rp/api/v1', project: 'proj' })).toThrow(/apiKey/);
+      expect(() => factory({ token: 'legacy-token', endpoint: 'https://rp/api/v1', project: 'proj' })).not.toThrow();
     });
 
-    test('legacy "projectName" is NOT an alias for project (hard break)', () => {
+    test('deprecated "projectName" satisfies the project check', () => {
       const { factory } = loadPlugin();
-      expect(() => factory({ apiKey: 'k', endpoint: 'https://rp/api/v1', projectName: 'legacy-project' })).toThrow(/project/);
+      expect(() => factory({ apiKey: 'k', endpoint: 'https://rp/api/v1', projectName: 'legacy-project' })).not.toThrow();
     });
   });
 
@@ -237,7 +237,7 @@ describe('agent-js-codecept — EPMRPP-122056 config resolution', () => {
       expect(() => factory({ apiKey: 'k', endpoint: 'https://rp/api/v1' })).not.toThrow();
     });
 
-    test('env var takes precedence over explicit apiKey', async () => {
+    test('explicit apiKey takes precedence over RP_API_KEY', async () => {
       process.env.RP_API_KEY = 'env-key';
       const { RPClient } = await registerAndStart({
         apiKey: 'explicit-key',
@@ -245,30 +245,30 @@ describe('agent-js-codecept — EPMRPP-122056 config resolution', () => {
         project: 'proj',
       });
       expect(RPClient).toHaveBeenCalledTimes(1);
-      expect(RPClient.mock.calls[0][0].apiKey).toBe('env-key');
+      expect(RPClient.mock.calls[0][0].apiKey).toBe('explicit-key');
     });
 
-    test('env var takes precedence over explicit endpoint', async () => {
+    test('explicit endpoint takes precedence over RP_ENDPOINT', async () => {
       process.env.RP_ENDPOINT = 'https://env.rp/api/v1';
       const { RPClient } = await registerAndStart({
         apiKey: 'k',
         endpoint: 'https://explicit.rp/api/v1',
         project: 'proj',
       });
-      expect(RPClient.mock.calls[0][0].endpoint).toBe('https://env.rp/api/v1');
+      expect(RPClient.mock.calls[0][0].endpoint).toBe('https://explicit.rp/api/v1');
     });
 
-    test('env var takes precedence over explicit project', async () => {
+    test('explicit project takes precedence over RP_PROJECT', async () => {
       process.env.RP_PROJECT = 'env-project';
       const { RPClient } = await registerAndStart({
         apiKey: 'k',
         endpoint: 'https://rp/api/v1',
         project: 'explicit-project',
       });
-      expect(RPClient.mock.calls[0][0].project).toBe('env-project');
+      expect(RPClient.mock.calls[0][0].project).toBe('explicit-project');
     });
 
-    test('env var takes precedence over explicit launch', async () => {
+    test('explicit launch takes precedence over RP_LAUNCH', async () => {
       process.env.RP_LAUNCH = 'env-launch';
       const { RPClient } = await registerAndStart({
         apiKey: 'k',
@@ -276,7 +276,27 @@ describe('agent-js-codecept — EPMRPP-122056 config resolution', () => {
         project: 'proj',
         launch: 'explicit-launch',
       });
+      expect(RPClient.mock.calls[0][0].launch).toBe('explicit-launch');
+    });
+
+    test('RP_LAUNCH is used when no launch is configured', async () => {
+      process.env.RP_LAUNCH = 'env-launch';
+      const { RPClient } = await registerAndStart({
+        apiKey: 'k',
+        endpoint: 'https://rp/api/v1',
+        project: 'proj',
+      });
       expect(RPClient.mock.calls[0][0].launch).toBe('env-launch');
+    });
+
+    test('a deprecated name in the config also beats the env var', async () => {
+      process.env.RP_API_KEY = 'env-key';
+      const { RPClient } = await registerAndStart({
+        token: 'legacy-token',
+        endpoint: 'https://rp/api/v1',
+        project: 'proj',
+      });
+      expect(RPClient.mock.calls[0][0].apiKey).toBe('legacy-token');
     });
 
     test('empty-string env var is treated as unset — explicit config wins', async () => {
@@ -406,7 +426,7 @@ describe('agent-js-codecept — EPMRPP-122056 config resolution', () => {
       expect(rp.startLaunch.mock.calls[0][0].attributes).toEqual([]);
     });
 
-    test('legacy launchAttributes is ignored (not aliased onto attributes)', async () => {
+    test('deprecated launchAttributes is used as attributes', async () => {
       const { RPClient } = await registerAndStart({
         apiKey: 'k',
         endpoint: 'https://rp/api/v1',
@@ -414,7 +434,7 @@ describe('agent-js-codecept — EPMRPP-122056 config resolution', () => {
         launchAttributes: [{ key: 'legacy', value: 'yes' }],
       });
       const launchOpts = RPClient.mock.results[0].value.startLaunch.mock.calls[0][0];
-      expect(launchOpts.attributes).toEqual([]);
+      expect(launchOpts.attributes).toEqual([{ key: 'legacy', value: 'yes' }]);
     });
 
     test('attributes passed explicitly are forwarded unchanged', async () => {
@@ -429,7 +449,7 @@ describe('agent-js-codecept — EPMRPP-122056 config resolution', () => {
       expect(launchOpts.attributes).toEqual([{ key: 'env', value: 'prod' }, { value: 'smoke' }]);
     });
 
-    test('legacy launchDescription is ignored — description defaults to ""', async () => {
+    test('deprecated launchDescription is used as description', async () => {
       const { RPClient } = await registerAndStart({
         apiKey: 'k',
         endpoint: 'https://rp/api/v1',
@@ -437,7 +457,7 @@ describe('agent-js-codecept — EPMRPP-122056 config resolution', () => {
         launchDescription: 'legacy',
       });
       const launchOpts = RPClient.mock.results[0].value.startLaunch.mock.calls[0][0];
-      expect(launchOpts.description).toBe('');
+      expect(launchOpts.description).toBe('legacy');
     });
 
     test('description, mode, rerun, rerunOf come from the resolved config', async () => {
@@ -467,15 +487,14 @@ describe('agent-js-codecept — EPMRPP-122056 config resolution', () => {
       expect(launchOpts.mode).toBe('DEFAULT');
     });
 
-    test('legacy launchName is ignored (not aliased onto launch)', async () => {
+    test('deprecated launchName is used as launch', async () => {
       const { RPClient } = await registerAndStart({
         apiKey: 'k',
         endpoint: 'https://rp/api/v1',
         project: 'proj',
         launchName: 'legacy-launch',
       });
-      // Default must apply because legacy name is ignored.
-      expect(RPClient.mock.calls[0][0].launch).toBe('codeceptjs tests');
+      expect(RPClient.mock.calls[0][0].launch).toBe('legacy-launch');
     });
 
     test('RP_LAUNCH_ID env attaches id to the launch options (merge-launch wiring)', async () => {
@@ -503,6 +522,53 @@ describe('agent-js-codecept — EPMRPP-122056 config resolution', () => {
   // ------------------------------------------------------------------------
   // Non-mutation of module-level defaults (AC #5)
   // ------------------------------------------------------------------------
+
+  describe('deprecated option names', () => {
+    let warn;
+    beforeEach(() => {
+      warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+    afterEach(() => {
+      warn.mockRestore();
+    });
+
+    test('each deprecated name warns with its replacement', () => {
+      const { factory } = loadPlugin();
+      factory({
+        token: 't',
+        endpoint: 'https://rp/api/v1',
+        projectName: 'p',
+        launchName: 'l',
+        launchDescription: 'd',
+        launchAttributes: [],
+      });
+      expect(warn.mock.calls.map((c) => c[0])).toEqual([
+        "Option 'token' is deprecated. Use 'apiKey' instead.",
+        "Option 'projectName' is deprecated. Use 'project' instead.",
+        "Option 'launchName' is deprecated. Use 'launch' instead.",
+        "Option 'launchDescription' is deprecated. Use 'description' instead.",
+        "Option 'launchAttributes' is deprecated. Use 'attributes' instead.",
+      ]);
+    });
+
+    test('modern names produce no warning', () => {
+      const { factory } = loadPlugin();
+      factory({ apiKey: 'k', endpoint: 'https://rp/api/v1', project: 'proj' });
+      expect(warn).not.toHaveBeenCalled();
+    });
+
+    test('the modern name wins when both are set', async () => {
+      const { RPClient } = await registerAndStart({
+        apiKey: 'modern-key',
+        token: 'legacy-token',
+        endpoint: 'https://rp/api/v1',
+        project: 'proj',
+        projectName: 'legacy-project',
+      });
+      expect(RPClient.mock.calls[0][0].apiKey).toBe('modern-key');
+      expect(RPClient.mock.calls[0][0].project).toBe('proj');
+    });
+  });
 
   describe('config resolution is pure (no module-level mutation)', () => {
     test('attributes from one factory call do not leak into the next', async () => {

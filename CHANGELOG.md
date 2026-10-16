@@ -1,12 +1,12 @@
 # 1.0.0
 
 ### Added
-* `apiKey` option — primary authentication key (replaces the removed `token`).
+* `apiKey` option — primary authentication key (replaces the deprecated `token`).
 * `restClientConfig` option — opaque passthrough to the ReportPortal HTTP
   client enabling proxy, timeout, retry, and custom header configuration.
 * Environment-variable fallbacks: `RP_API_KEY`, `RP_ENDPOINT`, `RP_PROJECT`,
-  `RP_LAUNCH`. Resolution precedence is: env var → explicit config → default.
-  An empty-string env var is treated as unset.
+  `RP_LAUNCH`. Resolution precedence is: explicit config → env var → default.
+  An empty string is treated as unset.
 
 ### Changed
 * Bumped `@reportportal/client-javascript` to `~5.6.0`.
@@ -15,15 +15,16 @@
   (previously resolved via transitive hoisting).
 * The default configuration object is no longer mutated across invocations.
 
-### Breaking changes
-* Removed legacy option names. There is no backward-compatibility alias or
-  deprecation warning for these — passing them is silently ignored and
-  required-field validation surfaces the missing modern names.
+### Deprecated
+* Old option names still work, print a deprecation warning, and lose to the new
+  name when both are set:
   * `token` → use `apiKey`
   * `projectName` → use `project`
   * `launchName` → use `launch`
   * `launchDescription` → use `description`
   * `launchAttributes` → use `attributes`
+
+### Breaking changes
 * `attributes` now defaults to `[]`.
 * Required fields reported by configuration validation are now `apiKey`,
   `endpoint`, `project`.

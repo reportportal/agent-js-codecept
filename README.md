@@ -25,13 +25,12 @@ npm i @reportportal/agent-js-codecept --save
 
 ## Configuration
 
-> **⚠ Breaking change (major release).** The option surface has been renamed to
-> match the rest of the ReportPortal JavaScript agent fleet (e.g.
-> `agent-js-playwright`). The legacy names below are **removed** — they are not
-> aliased and the agent emits no deprecation warning for them. Required-field
-> validation will fail if you still use `token` / `projectName`.
+> **Deprecated option names.** The options were renamed to match the rest of the
+> ReportPortal JavaScript agents (e.g. `agent-js-playwright`). The old names
+> still work but print a deprecation warning; when both are set, the new name
+> wins. They will be removed in a future major release.
 >
-> | Removed            | Replacement   |
+> | Deprecated         | Replacement   |
 > |--------------------|---------------|
 > | `token`            | `apiKey`      |
 > | `projectName`      | `project`     |
@@ -87,16 +86,16 @@ variables are recognised:
 
 **Precedence (highest to lowest):**
 
-1. Environment variable (where applicable)
-2. Explicit value from `codecept.conf.js`
+1. Explicit value from `codecept.conf.js`
+2. Environment variable (where applicable)
 3. Default (if any)
 
-An env var is considered "set" only when it is defined **and** non-empty, so a
-blank shell variable (`RP_LAUNCH=""`) does not override a value committed to the
-config file.
+A value is considered "set" only when it is defined **and** non-empty, so a
+blank shell variable (`RP_LAUNCH=""`) or an empty option falls through to the
+next level.
 
-This lets CI/CD retarget a committed `codecept.conf.js` at runtime (switch
-endpoint, inject a per-pipeline API key) without editing the file.
+This lets CI/CD supply values the committed `codecept.conf.js` leaves out (for
+example a per-pipeline API key) without editing the file.
 
 ## Public API
 
