@@ -71,7 +71,7 @@ To use this plugin you need to provide the following info:
 - `debug`: (optional) to turn on the debug for reportportal
 - `rerun`: (optional) to enable [rerun](https://github.com/reportportal/documentation/blob/master/src/md/src/DevGuides/rerun.md)
 - `rerunOf`: (optional) UUID of launch you want to rerun. If not specified, report portal will update the latest launch with the same name
-- `restClientConfig`: (optional) opaque object forwarded verbatim to the ReportPortal HTTP client. Use it to configure HTTP transport such as proxy, timeout, retry, and custom headers. See [`@reportportal/client-javascript` README](https://github.com/reportportal/client-javascript#reportportal-advanced-configuration) for the accepted shape.
+- `restClientConfig`: (optional) opaque object forwarded verbatim to the ReportPortal HTTP client. Use it to configure HTTP transport such as proxy, timeout, retry, and custom headers. See [`@reportportal/client-javascript` README](https://github.com/reportportal/client-javascript#http-client-options) for the accepted shape.
 
 ### Environment variables
 

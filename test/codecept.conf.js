@@ -26,12 +26,12 @@ exports.config = {
     },
     reportportal: {
       require: '../index',
-      token: process.env['RP_TOKEN'],
+      apiKey: process.env['RP_API_KEY'],
       endpoint: 'https://web.demo.reportportal.io/api/v1',
-      launchName: 'This is demo launch',
-      launchDescription: 'This is a description of your launch',
-      launchAttributes: [{ key: 'yourKey', value: 'yourValue' }],
-      projectName: 'peterngtr_personal',
+      launch: 'This is demo launch',
+      description: 'This is a description of your launch',
+      attributes: [{ key: 'yourKey', value: 'yourValue' }],
+      project: 'peterngtr_personal',
       rerun: false,
       debug: false,
       enabled: true
