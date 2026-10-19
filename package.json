@@ -1,6 +1,6 @@
 {
   "name": "@reportportal/agent-js-codecept",
-  "version": "0.2.3",
+  "version": "1.0.0",
   "description": "Agent for integration CodeceptJS with ReportPortal.",
   "repository": {
     "type": "git",
@@ -23,11 +23,23 @@
   "files": [
     "index.js"
   ],
+  "engines": {
+    "node": ">=16"
+  },
   "dependencies": {
-    "@reportportal/client-javascript": "^5.0.2"
+    "@reportportal/client-javascript": "~5.6.0",
+    "debug": "^4.3.4",
+    "lodash.clonedeep": "^4.5.0"
   },
   "scripts": {
-    "test": "mocha test/acceptance_test.js --timeout 6000"
+    "test": "jest",
+    "test:acceptance": "mocha test/acceptance_test.js --timeout 6000"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "<rootDir>/__tests__/**/*.test.js"
+    ]
   },
   "devDependencies": {
     "chai": "^4.2.0",
@@ -35,6 +47,7 @@
     "eslint": "^6.6.0",
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-plugin-import": "^2.18.2",
+    "jest": "^29.7.0",
     "lodash": "^4.17.21",
     "mocha": "^7.0.1",
     "puppeteer": "^2.1.1"

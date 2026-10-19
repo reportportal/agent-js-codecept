@@ -30,29 +30,70 @@ for (const helperName of screenshotHelpers) {
   }
 }
 
-const defaultConfig = {
-  token: '',
-  endpoint: '',
-  projectName: '',
-  launchName: 'codeceptjs tests',
-  launchDescription: '',
-  attributes: [],
-  debug: false,
-  rerun: undefined,
-  enabled: false,
-  mode: 'DEFAULT'
+const ENV_FALLBACKS = {
+  apiKey: 'RP_API_KEY',
+  endpoint: 'RP_ENDPOINT',
+  project: 'RP_PROJECT',
+  launch: 'RP_LAUNCH',
 };
 
-const requiredFields = ['projectName', 'token', 'endpoint'];
+// Deprecated option names and their replacements.
+const LEGACY_OPTIONS = {
+  token: 'apiKey',
+  projectName: 'project',
+  launchName: 'launch',
+  launchDescription: 'description',
+  launchAttributes: 'attributes',
+};
+
+const requiredFields = ['apiKey', 'endpoint', 'project'];
+
+const isSet = (value) => value !== undefined && value !== '';
+
+// Explicit config wins; the env var is a fallback; empty strings count as unset.
+function pick(explicit, envVar, defaultValue) {
+  if (isSet(explicit)) return explicit;
+  if (envVar && isSet(process.env[envVar])) return process.env[envVar];
+  return defaultValue;
+}
+
+// Maps deprecated names onto their replacements (a new name wins) and warns.
+function withLegacyOptions(config) {
+  const merged = { ...config };
+  Object.keys(LEGACY_OPTIONS).forEach((legacy) => {
+    if (config[legacy] === undefined) return;
+    const modern = LEGACY_OPTIONS[legacy];
+    console.warn(`Option '${legacy}' is deprecated. Use '${modern}' instead.`);
+    if (merged[modern] === undefined) merged[modern] = config[legacy];
+  });
+  return merged;
+}
+
+function resolveConfig(rawConfig = {}) {
+  const config = withLegacyOptions(rawConfig);
+  return {
+    apiKey: pick(config.apiKey, ENV_FALLBACKS.apiKey, undefined),
+    endpoint: pick(config.endpoint, ENV_FALLBACKS.endpoint, undefined),
+    project: pick(config.project, ENV_FALLBACKS.project, undefined),
+    launch: pick(config.launch, ENV_FALLBACKS.launch, 'codeceptjs tests'),
+    description: config.description !== undefined ? config.description : '',
+    attributes: config.attributes !== undefined ? config.attributes : [],
+    mode: config.mode !== undefined ? config.mode : 'DEFAULT',
+    debug: config.debug !== undefined ? config.debug : false,
+    rerun: config.rerun,
+    rerunOf: config.rerunOf,
+    restClientConfig: config.restClientConfig,
+  };
+}
 
 
 module.exports = (config) => {
-  config = Object.assign(defaultConfig, config);
+  const resolved = resolveConfig(config);
 
   for (let field of requiredFields) {
-    if (!config[field]) throw new Error(`ReportPortal config is invalid. Key ${field} is missing in config.\nRequired fields: ${requiredFields} `)
+    if (!resolved[field]) throw new Error(`ReportPortal config is invalid. Key ${field} is missing in config.\nRequired fields: ${requiredFields} `)
   }
-  
+
   let reportUrl;
   let launchObj;
   let suiteObj;
@@ -79,7 +120,7 @@ module.exports = (config) => {
       output.error(err);
       process.exit(1);
     }
-    output.print(`📋 Writing results to ReportPortal: ${config.projectName} > ${config.endpoint}`);
+    output.print(`📋 Writing results to ReportPortal: ${resolved.project} > ${resolved.endpoint}`);
 
     const outputLog = output.log;
     const outputDebug = output.debug;
@@ -253,22 +294,24 @@ module.exports = (config) => {
 
   function startLaunch(suiteTitle) {
     rpClient = new RPClient({
-      token: config.token,
-      endpoint: config.endpoint,
-      project: config.projectName,
-      debug: config.debug,
+      apiKey: resolved.apiKey,
+      endpoint: resolved.endpoint,
+      project: resolved.project,
+      launch: resolved.launch,
+      debug: resolved.debug,
+      restClientConfig: resolved.restClientConfig,
     });
 
     const options = {
-      name: config.launchName || suiteTitle,
-      description: config.launchDescription,
-      attributes: config.launchAttributes,
-      rerun: config.rerun,
-      rerunOf: config.rerunOf,
-      mode: config.mode,
+      name: resolved.launch || suiteTitle,
+      description: resolved.description,
+      attributes: resolved.attributes,
+      rerun: resolved.rerun,
+      rerunOf: resolved.rerunOf,
+      mode: resolved.mode,
     }
 
-    if (process.env.RP_LAUNCH_ID) { 
+    if (process.env.RP_LAUNCH_ID) {
       options.id = process.env.RP_LAUNCH_ID
     }
 

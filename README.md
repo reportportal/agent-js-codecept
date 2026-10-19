@@ -21,7 +21,22 @@ When enabled this plugin sends information on test runs to ReportPortal server:
 npm i @reportportal/agent-js-codecept --save
 ```
 
+**Requires Node.js `>=16`.**
+
 ## Configuration
+
+> **Deprecated option names.** The options were renamed to match the rest of the
+> ReportPortal JavaScript agents (e.g. `agent-js-playwright`). The old names
+> still work but print a deprecation warning; when both are set, the new name
+> wins. They will be removed in a future major release.
+>
+> | Deprecated         | Replacement   |
+> |--------------------|---------------|
+> | `token`            | `apiKey`      |
+> | `projectName`      | `project`     |
+> | `launchName`       | `launch`      |
+> | `launchDescription`| `description` |
+> | `launchAttributes` | `attributes`  |
 
 This plugin should be added in `codecept.conf.js`
 
@@ -34,10 +49,10 @@ Example:
     reportportal: {
       enabled: true,
       require: '@reportportal/agent-js-codecept',
-      token: 'YOUR_TOKEN',
+      apiKey: 'YOUR_API_KEY',
       endpoint: 'http://localhost:8080/api/v1',
-      launchName: 'local launch',
-      projectName: 'Awesome_project'
+      launch: 'local launch',
+      project: 'Awesome_project'
     }
   //...
 }
@@ -45,16 +60,42 @@ Example:
 
 To use this plugin you need to provide the following info:
 
-- `token` - required: which can be found by navigating to the user profile page, clicking the username drop-down in the right header and selecting the "Profile" > "UUID" – is a unique user identifier. UUID is used in automated test configuration files for a user authentication instead of a password. It will allow you to post data, without logging it in the UI.
+- `apiKey` - required: user's token for ReportPortal. The API key can be found on the user profile page in the ReportPortal UI. It is used for authentication instead of a password so that data can be posted without a UI login.
 - `endpoint` - required: your reportportal host + `api/v1` for instance: `http://localhost:8080/api/v1`
-- `launchName` - required: the launch name you want, if not provided, the suite title will be used
-- `projectName` - required: the project that you created in the reportportal UI
-- `launchDescription`: (optional) the description of your launch, if not provided, the description will be empty
-- `launchAttributes`: (optional) the attributes of your launch, if not provided, the attributes will be empty
+- `project` - required: the project that you created in the reportportal UI
+- `launch`: (optional) the launch name you want. Defaults to `codeceptjs tests`. If not provided and the suite title is available, the suite title is used.
+- `description`: (optional) the description of your launch, if not provided, the description will be empty
+- `attributes`: (optional) the attributes of your launch, if not provided, the attributes will be empty (`[]`)
+- `mode`: (optional) to specify visibility of launch, if set to `'DEBUG'`, then launch results will be only visible in the 'Debug' section of a project. Defaults to `'DEFAULT'`.
 - `debug`: (optional) to turn on the debug for reportportal
 - `rerun`: (optional) to enable [rerun](https://github.com/reportportal/documentation/blob/master/src/md/src/DevGuides/rerun.md)
 - `rerunOf`: (optional) UUID of launch you want to rerun. If not specified, report portal will update the latest launch with the same name
-- `mode`: (optional) to specify visibility of launch, if set to 'DEBUG', then launch results will be only visible in 'Debug' section of a project.
+- `restClientConfig`: (optional) opaque object forwarded verbatim to the ReportPortal HTTP client. Use it to configure HTTP transport such as proxy, timeout, retry, and custom headers. See [`@reportportal/client-javascript` README](https://github.com/reportportal/client-javascript#http-client-options) for the accepted shape.
+
+### Environment variables
+
+Four options accept an environment-variable fallback. The following environment
+variables are recognised:
+
+| Env var        | Option     |
+|----------------|------------|
+| `RP_API_KEY`   | `apiKey`   |
+| `RP_ENDPOINT`  | `endpoint` |
+| `RP_PROJECT`   | `project`  |
+| `RP_LAUNCH`    | `launch`   |
+
+**Precedence (highest to lowest):**
+
+1. Explicit value from `codecept.conf.js`
+2. Environment variable (where applicable)
+3. Default (if any)
+
+A value is considered "set" only when it is defined **and** non-empty, so a
+blank shell variable (`RP_LAUNCH=""`) or an empty option falls through to the
+next level.
+
+This lets CI/CD supply values the committed `codecept.conf.js` leaves out (for
+example a per-pipeline API key) without editing the file.
 
 ## Public API
 
