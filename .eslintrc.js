@@ -1,21 +1,34 @@
 module.exports = {
   env: {
-    browser: true,
+    node: true,
     commonjs: true,
-    es6: true,
+    es2022: true,
+    jest: true,
   },
-  extends: [
-    'airbnb-base',
-  ],
+  extends: ['airbnb-base', 'prettier'],
+  parserOptions: { ecmaVersion: 2022 },
   globals: {
-    Atomics: 'readonly',
-    SharedArrayBuffer: 'readonly',
-  },
-  parserOptions: {
-    ecmaVersion: 2018,
+    codeceptjs: 'readonly',
   },
   rules: {
-    'no-underscore-dangle': ["error", { "allowAfterThis": true }],
-    "class-methods-use-this": [0]
+    'no-underscore-dangle': 'off',
+    'class-methods-use-this': 'off',
+    'no-console': 'off',
+    camelcase: 'off',
+    'no-restricted-syntax': 'off',
+    'no-await-in-loop': 'off',
+    'no-plusplus': 'off',
+    'no-continue': 'off',
+    'no-param-reassign': 'off',
+    'no-use-before-define': 'off',
+    'prefer-const': 'off',
+    'prefer-template': 'off',
+    'prefer-object-spread': 'off',
+    'no-unneeded-ternary': 'off',
+    'consistent-return': 'off',
+    'no-unused-expressions': 'off',
+    'guard-for-in': 'off',
+    'import/newline-after-import': 'off',
+    'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
   },
 };

@@ -31,9 +31,13 @@
     "debug": "^4.3.4",
     "lodash.clonedeep": "^4.5.0"
   },
+  "peerDependencies": {
+    "codeceptjs": ">=3.0.0 <4"
+  },
   "scripts": {
     "test": "jest",
-    "test:acceptance": "mocha test/acceptance_test.js --timeout 6000"
+    "lint": "eslint \"**/*.js\"",
+    "format": "prettier --write \"**/*.{js,json,md}\""
   },
   "jest": {
     "testEnvironment": "node",
@@ -42,14 +46,12 @@
     ]
   },
   "devDependencies": {
-    "chai": "^4.2.0",
-    "codeceptjs": "2.5.0",
-    "eslint": "^6.6.0",
-    "eslint-config-airbnb-base": "^14.0.0",
-    "eslint-plugin-import": "^2.18.2",
+    "codeceptjs": "~3.7.9",
+    "eslint": "^8.57.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.0",
     "jest": "^29.7.0",
-    "lodash": "^4.17.21",
-    "mocha": "^7.0.1",
-    "puppeteer": "^2.1.1"
+    "prettier": "^3.2.0"
   }
 }

@@ -10,7 +10,6 @@ let helper;
 
 const rp_FAILED = 'FAILED';
 const rp_PASSED = 'PASSED';
-const rp_SUITE = 'SUITE';
 const rp_TEST = 'TEST';
 const rp_STEP = 'STEP';
 
@@ -94,7 +93,6 @@ module.exports = (config) => {
     if (!resolved[field]) throw new Error(`ReportPortal config is invalid. Key ${field} is missing in config.\nRequired fields: ${requiredFields} `)
   }
 
-  let reportUrl;
   let launchObj;
   let suiteObj;
   let testObj;
@@ -187,7 +185,7 @@ module.exports = (config) => {
     if (step && step.tempId) failedStep = Object.assign({}, step);
   });
 
-  event.dispatcher.on(event.step.passed, (step, err) => {
+  event.dispatcher.on(event.step.passed, (_step, _err) => {
     for (const metaStep of currentMetaSteps) {
       metaStep.status = 'passed';
     }
@@ -212,11 +210,11 @@ module.exports = (config) => {
   
       const screenshot = await attachScreenshot();      
 
-      resp = await rpClient.sendLog(step.tempId, {
+      await rpClient.sendLog(step.tempId, {
         level: 'ERROR',
         message: `${err.stack}`,
         time: step.startTime,
-      }, screenshot).promise; 
+      }, screenshot).promise;
 
     }
 
@@ -239,7 +237,7 @@ module.exports = (config) => {
     });  
   });
 
-  event.dispatcher.on(event.test.passed, (test, err) => {
+  event.dispatcher.on(event.test.passed, (test, _err) => {
     debug(`${test.tempId}: Test '${test.title}' passed.`);
     rpClient.finishTestItem(test.tempId, {
       endTime: test.endTime || rpClient.helpers.now(),
@@ -247,7 +245,7 @@ module.exports = (config) => {
     });    
   });
 
-  event.dispatcher.on(event.test.after, (test) => {
+  event.dispatcher.on(event.test.after, (_test) => {
     recorder.add(async () => {
       debug(`closing ${currentMetaSteps.length} metasteps for failed test`);
       if (failedStep) await finishStep(failedStep);
@@ -348,7 +346,6 @@ module.exports = (config) => {
 
       const response = await launch.promise;
 
-      reportUrl = response.link;
       output.print(` 📋 Report #${response.number} saved ➡`, response.link);
       event.emit('reportportal.result', response);
     } catch (error) {
