@@ -2,6 +2,7 @@
 /* eslint-disable
    global-require,
    import/no-dynamic-require,
+   import/extensions,
    no-restricted-syntax,
    no-await-in-loop,
    no-underscore-dangle
@@ -130,7 +131,7 @@ function loadPlugin() {
   const RPClient = require('@reportportal/client-javascript');
   RPClient.mockImplementation(makeRpClientImpl());
 
-  const factory = require('../index');
+  const factory = require('../src');
   return { ...ctx, RPClient, factory };
 }
 

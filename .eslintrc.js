@@ -10,6 +10,12 @@ module.exports = {
   globals: {
     codeceptjs: 'readonly',
   },
+  settings: {
+    'import/resolver': {
+      typescript: { project: './tsconfig.json', alwaysTryTypes: true },
+      node: { extensions: ['.js', '.ts'] },
+    },
+  },
   rules: {
     'no-underscore-dangle': 'off',
     'class-methods-use-this': 'off',
@@ -31,4 +37,44 @@ module.exports = {
     'import/newline-after-import': 'off',
     'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
   },
+  overrides: [
+    {
+      files: ['*.ts'],
+      parser: '@typescript-eslint/parser',
+      parserOptions: {
+        ecmaVersion: 2022,
+        sourceType: 'module',
+        project: './tsconfig.json',
+      },
+      plugins: ['@typescript-eslint'],
+      extends: ['airbnb-base', 'plugin:@typescript-eslint/recommended', 'prettier'],
+      rules: {
+        'import/extensions': ['error', 'ignorePackages', { ts: 'never', js: 'never' }],
+        'import/prefer-default-export': 'off',
+        'import/no-unresolved': ['error', { ignore: ['^@reportportal/client-javascript/'] }],
+        '@typescript-eslint/no-explicit-any': 'off',
+        '@typescript-eslint/no-var-requires': 'off',
+        '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+        'no-param-reassign': 'off',
+        'no-underscore-dangle': 'off',
+        'no-use-before-define': 'off',
+        'no-restricted-syntax': 'off',
+        'no-await-in-loop': 'off',
+        'no-plusplus': 'off',
+        'no-continue': 'off',
+        'prefer-const': 'off',
+        'guard-for-in': 'off',
+        'no-console': 'off',
+        'consistent-return': 'off',
+        'no-unused-expressions': 'off',
+        // Mirror the root JS rules so transcribed code does not trip rules
+        // the original JS never had to satisfy.
+        'prefer-template': 'off',
+        'prefer-object-spread': 'off',
+        'no-unneeded-ternary': 'off',
+        camelcase: 'off',
+        'import/newline-after-import': 'off',
+      },
+    },
+  ],
 };
