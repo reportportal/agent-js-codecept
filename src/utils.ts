@@ -22,8 +22,8 @@ export function isEqualMetaStep(metastep1: RpStep | undefined, metastep2: RpStep
   );
 }
 
-export function rpStatus(status: string | undefined): string | undefined {
+export function rpStatus(status: string | undefined): STATUSES | undefined {
   if (status === 'success') return STATUSES.PASSED;
   if (status === 'failed') return STATUSES.FAILED;
-  return status;
+  return status as STATUSES | undefined;
 }

@@ -1,3 +1,4 @@
+import { LAUNCH_MODES } from '@reportportal/client-javascript/constants';
 import type { PluginConfig, ResolvedConfig } from './models';
 
 const ENV_FALLBACKS = {
@@ -7,52 +8,29 @@ const ENV_FALLBACKS = {
   launch: 'RP_LAUNCH',
 } as const;
 
-// Deprecated option names and their replacements.
-const LEGACY_OPTIONS: Record<string, keyof PluginConfig> = {
-  token: 'apiKey',
-  projectName: 'project',
-  launchName: 'launch',
-  launchDescription: 'description',
-  launchAttributes: 'attributes',
-};
-
 export const requiredFields: Array<keyof ResolvedConfig> = ['apiKey', 'endpoint', 'project'];
 
 const isSet = (value: unknown): boolean => value !== undefined && value !== '';
 
-// Explicit config wins; the env var is a fallback; empty strings count as unset.
-function pick<T>(explicit: T, envVar: string | undefined, defaultValue: T): T | string {
+// An empty string counts as unset, so `RP_LAUNCH=""` still falls through to the default.
+function pick(explicit: string | undefined, envVar: string): string | undefined {
   if (isSet(explicit)) return explicit;
-  if (envVar && isSet(process.env[envVar])) return process.env[envVar] as string;
-  return defaultValue;
+  if (isSet(process.env[envVar])) return process.env[envVar];
+  return undefined;
 }
 
-// Maps deprecated names onto their replacements (a new name wins) and warns.
-function withLegacyOptions(config: PluginConfig): PluginConfig {
-  const merged: PluginConfig = { ...config };
-  Object.keys(LEGACY_OPTIONS).forEach((legacy) => {
-    if (config[legacy] === undefined) return;
-    const modern = LEGACY_OPTIONS[legacy];
-    // eslint-disable-next-line no-console
-    console.warn(`Option '${legacy}' is deprecated. Use '${modern}' instead.`);
-    if (merged[modern] === undefined) merged[modern] = config[legacy];
-  });
-  return merged;
-}
-
-export function resolveConfig(rawConfig: PluginConfig = {}): ResolvedConfig {
-  const config = withLegacyOptions(rawConfig);
+export function resolveConfig(config: PluginConfig = {}): ResolvedConfig {
   return {
-    apiKey: pick(config.apiKey, ENV_FALLBACKS.apiKey, undefined) as string | undefined,
-    endpoint: pick(config.endpoint, ENV_FALLBACKS.endpoint, undefined) as string | undefined,
-    project: pick(config.project, ENV_FALLBACKS.project, undefined) as string | undefined,
-    launch: pick(config.launch, ENV_FALLBACKS.launch, 'codeceptjs tests') as string,
-    description: config.description !== undefined ? config.description : '',
-    attributes: config.attributes !== undefined ? (config.attributes as unknown[]) : [],
-    mode: config.mode !== undefined ? config.mode : 'DEFAULT',
-    debug: config.debug !== undefined ? (config.debug as boolean) : false,
-    rerun: config.rerun as boolean | undefined,
-    rerunOf: config.rerunOf as string | undefined,
+    apiKey: pick(config.apiKey, ENV_FALLBACKS.apiKey),
+    endpoint: pick(config.endpoint, ENV_FALLBACKS.endpoint),
+    project: pick(config.project, ENV_FALLBACKS.project),
+    launch: pick(config.launch, ENV_FALLBACKS.launch) ?? 'codeceptjs tests',
+    description: config.description ?? '',
+    attributes: config.attributes ?? [],
+    mode: config.mode ?? LAUNCH_MODES.DEFAULT,
+    debug: config.debug ?? false,
+    rerun: config.rerun,
+    rerunOf: config.rerunOf,
     restClientConfig: config.restClientConfig,
   };
 }

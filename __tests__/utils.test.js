@@ -7,20 +7,6 @@
    no-restricted-syntax
 */
 
-/**
- * Unit tests for EPMRPP-122058:
- *   Migrate the agent to TypeScript.
- *
- * Covers the pure helpers extracted into `src/utils.ts` during the
- * migration (`iterateMetaSteps`, `metaStepsToArray`, `isEqualMetaStep`,
- * `rpStatus`) plus the AC "client constants come from the
- * `@reportportal/client-javascript/constants` subpath export".
- *
- * These helpers are side-effect free, so no mocks are required. ts-jest
- * compiles the TS source on-demand. All data is deterministic — no
- * timers, no random values, no network.
- */
-
 const { STATUSES } = require('@reportportal/client-javascript/constants');
 
 const {
@@ -30,14 +16,6 @@ const {
   rpStatus,
 } = require('../src/utils');
 
-// --------------------------------------------------------------------------
-// Deterministic meta-step builder
-// --------------------------------------------------------------------------
-
-/**
- * Build a minimal meta-step shape. Only the fields the helpers under test
- * actually read are populated (actor, name, args, metaStep, tempId).
- */
 function makeMetaStep(overrides) {
   return {
     actor: 'I',
@@ -48,10 +26,6 @@ function makeMetaStep(overrides) {
     ...overrides,
   };
 }
-
-// --------------------------------------------------------------------------
-// rpStatus (maps CodeceptJS → ReportPortal client statuses)
-// --------------------------------------------------------------------------
 
 describe('rpStatus', () => {
   test("maps the CodeceptJS 'success' status to STATUSES.PASSED from the client's /constants export", () => {
@@ -75,10 +49,6 @@ describe('rpStatus', () => {
     expect(rpStatus('FAILED')).toBe('FAILED');
   });
 });
-
-// --------------------------------------------------------------------------
-// iterateMetaSteps (depth-first visit of nested meta-steps)
-// --------------------------------------------------------------------------
 
 describe('iterateMetaSteps', () => {
   test('does nothing when the step is null', () => {
@@ -112,10 +82,6 @@ describe('iterateMetaSteps', () => {
     expect(visited).toEqual(['inner', 'outer', 'step']);
   });
 });
-
-// --------------------------------------------------------------------------
-// metaStepsToArray (collects iterateMetaSteps output into an array)
-// --------------------------------------------------------------------------
 
 describe('metaStepsToArray', () => {
   test('returns an empty array when the step is null', () => {
@@ -155,10 +121,6 @@ describe('metaStepsToArray', () => {
     expect(a).toEqual(b);
   });
 });
-
-// --------------------------------------------------------------------------
-// isEqualMetaStep (meta-step deduplication logic)
-// --------------------------------------------------------------------------
 
 describe('isEqualMetaStep', () => {
   test('two undefined values are considered equal', () => {

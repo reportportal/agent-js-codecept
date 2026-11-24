@@ -6,26 +6,7 @@
    no-underscore-dangle
 */
 
-/**
- * Unit tests for EPMRPP-122058:
- *   Migrate the agent to TypeScript.
- *
- * Covers the AC "No behaviour change for users" and the design's chief
- * migration risk: the compiled module.exports must stay a plain factory
- * function so CodeceptJS's `require:` plugin loader can invoke it
- * (`require('@reportportal/agent-js-codecept')(config)`). `export default`
- * in TS would compile to `module.exports.default = …` under
- * `module: commonjs` and break the loader (design §5 and Risks).
- *
- * All data is deterministic — the only side-effect is stubbing the
- * `codeceptjs` global (torn down in afterEach).
- */
-
 jest.mock('@reportportal/client-javascript', () => jest.fn());
-
-// --------------------------------------------------------------------------
-// Deterministic mock factories (minimal — exports shape only)
-// --------------------------------------------------------------------------
 
 function makeCodeceptStub() {
   const handlers = new Map();
@@ -85,10 +66,6 @@ function loadFromSrc() {
   return { ...ctx, mod };
 }
 
-// --------------------------------------------------------------------------
-// Tests
-// --------------------------------------------------------------------------
-
 describe('src/index exported module (TS `export =` shape)', () => {
   afterEach(() => {
     delete global.codeceptjs;
@@ -101,13 +78,8 @@ describe('src/index exported module (TS `export =` shape)', () => {
   });
 
   test('the exported value is NOT an ESM-style object with a .default property', () => {
-    // `export default` in TS under `module: commonjs` compiles to
-    // `module.exports.default = …`, which breaks CodeceptJS's
-    // `require:` plugin loader. Guard against that regression here.
     const { mod } = loadFromSrc();
     expect(mod).not.toHaveProperty('default');
-    // The __esModule flag — present on TS `export default` output — must
-    // also be absent (ts-jest sets it on ESM-emitted modules, not CJS).
     expect(mod.default).toBeUndefined();
   });
 
@@ -121,14 +93,10 @@ describe('src/index exported module (TS `export =` shape)', () => {
     const fromIndex = require('../src');
     // eslint-disable-next-line import/no-unresolved
     const fromPlugin = require('../src/plugin');
-    // `src/index.ts` is a one-liner: `export = require('./plugin')`.
-    // Both requires must resolve to the identical function reference.
     expect(fromIndex).toBe(fromPlugin);
   });
 
   test('invoking the factory with valid config returns an object with addLog()', () => {
-    // The factory's return value is the public plugin API consumed by
-    // user code (`addLog`). Shape must survive the TS migration unchanged.
     const { mod } = loadFromSrc();
     const api = mod({
       apiKey: 'k',
@@ -140,8 +108,6 @@ describe('src/index exported module (TS `export =` shape)', () => {
   });
 
   test('invoking the factory registers event-dispatcher handlers for the full lifecycle', () => {
-    // Guards against a transcription regression where the TS port
-    // accidentally drops one of the handler registrations.
     const ctx = loadFromSrc();
     ctx.mod({
       apiKey: 'k',

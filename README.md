@@ -25,12 +25,11 @@ npm i @reportportal/agent-js-codecept --save
 
 ## Configuration
 
-> **Deprecated option names.** The options were renamed to match the rest of the
-> ReportPortal JavaScript agents (e.g. `agent-js-playwright`). The old names
-> still work but print a deprecation warning; when both are set, the new name
-> wins. They will be removed in a future major release.
+> **Renamed options (1.0.0).** The options were renamed to match the rest of the
+> ReportPortal JavaScript agents (e.g. `agent-js-playwright`). The old names are
+> no longer supported, so update your `codecept.conf.js` when upgrading from 0.x.
 >
-> | Deprecated         | Replacement   |
+> | Removed            | Use instead   |
 > |--------------------|---------------|
 > | `token`            | `apiKey`      |
 > | `projectName`      | `project`     |

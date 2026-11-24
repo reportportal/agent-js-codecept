@@ -67,8 +67,6 @@ module.exports = {
         'no-console': 'off',
         'consistent-return': 'off',
         'no-unused-expressions': 'off',
-        // Mirror the root JS rules so transcribed code does not trip rules
-        // the original JS never had to satisfy.
         'prefer-template': 'off',
         'prefer-object-spread': 'off',
         'no-unneeded-ternary': 'off',

@@ -3,11 +3,11 @@ import * as path from 'path';
 import createDebug from 'debug';
 import deepClone from 'lodash.clonedeep';
 import RPClient from '@reportportal/client-javascript';
-import { STATUSES, TEST_ITEM_TYPES, LAUNCH_MODES } from '@reportportal/client-javascript/constants';
+import { STATUSES, TEST_ITEM_TYPES, PREDEFINED_LOG_LEVELS } from '@reportportal/client-javascript/constants';
 import type {
-  Attribute,
   StartLaunchOptions,
-  StartTestItemOptions,
+  StartLaunchResponse,
+  StartTestItemResponse,
   FinishTestItemOptions,
   LogOptions,
   Attachment,
@@ -16,14 +16,7 @@ import type {
 
 import { resolveConfig, requiredFields } from './config';
 import { metaStepsToArray, isEqualMetaStep, rpStatus } from './utils';
-import type {
-  PluginConfig,
-  ResolvedConfig,
-  RpTest,
-  RpSuite,
-  RpStep,
-  ScreenshotFile,
-} from './models';
+import type { PluginConfig, ResolvedConfig, RpTest, RpSuite, RpStep } from './models';
 
 const debug = createDebug('codeceptjs:reportportal');
 const { event, recorder, output, container } = codeceptjs;
@@ -58,15 +51,15 @@ function plugin(config: PluginConfig) {
     }
   }
 
-  let launchObj: ClientResponse<unknown> | undefined;
-  let suiteObj: ClientResponse<unknown> | undefined;
-  let testObj: ClientResponse<unknown> | null = null;
-  let stepObj: ClientResponse<unknown> | null = null;
+  let launchObj: ClientResponse<StartLaunchResponse | StartLaunchOptions> | undefined;
+  let suiteObj: ClientResponse<StartTestItemResponse> | undefined;
+  let testObj: ClientResponse<StartTestItemResponse> | null = null;
+  let stepObj: ClientResponse<StartTestItemResponse> | null = null;
   let failedStep: RpStep | null = null;
   let rpClient: RPClient;
 
-  let suiteStatus: string = STATUSES.PASSED;
-  let launchStatus: string = STATUSES.PASSED;
+  let suiteStatus = STATUSES.PASSED;
+  let launchStatus = STATUSES.PASSED;
   let currentMetaSteps: RpStep[] = [];
 
   function logCurrent(data: LogOptions, file?: Attachment): void {
@@ -83,8 +76,7 @@ function plugin(config: PluginConfig) {
       output.error(err as any);
       process.exit(1);
     }
-    // `output.print` exists at runtime in CodeceptJS 3.x but is not in the
-    // bundled `namespace output` declaration — cast once to reach it.
+    // `output.print` is missing from the CodeceptJS typings.
     (output as any).print(`📋 Writing results to ReportPortal: ${resolved.project} > ${resolved.endpoint}`);
 
     const outputLog = output.log;
@@ -93,17 +85,17 @@ function plugin(config: PluginConfig) {
 
     output.log = (message: string) => {
       outputLog(message);
-      logCurrent({ level: 'trace' as any, message });
+      logCurrent({ level: 'trace', message });
     };
 
     output.debug = (message: string) => {
       outputDebug(message);
-      logCurrent({ level: 'debug' as any, message });
+      logCurrent({ level: 'debug', message });
     };
 
     output.error = (message: string) => {
       outputError(message);
-      logCurrent({ level: 'error' as any, message });
+      logCurrent({ level: 'error', message });
     };
   });
 
@@ -188,7 +180,7 @@ function plugin(config: PluginConfig) {
       await rpClient.sendLog(
         step.tempId as string,
         {
-          level: 'ERROR' as any,
+          level: PREDEFINED_LOG_LEVELS.ERROR,
           message: `${err.stack}`,
           time: step.startTime,
         },
@@ -203,7 +195,7 @@ function plugin(config: PluginConfig) {
 
     if (!failedStep) {
       await rpClient.sendLog(testTempId, {
-        level: 'ERROR' as any,
+        level: PREDEFINED_LOG_LEVELS.ERROR,
         message: `${err.stack}`,
       }).promise;
     }
@@ -211,9 +203,7 @@ function plugin(config: PluginConfig) {
     rpClient.finishTestItem(testTempId, {
       endTime: test.endTime || rpClient.helpers.now(),
       status: STATUSES.FAILED,
-      // `message` is not declared on FinishTestItemOptions but the current JS
-      // code sends it unchanged — keep it for byte-equivalence.
-      ...( { message: `${err.stack}` } as Record<string, unknown> ),
+      message: `${err.stack}`,
     } as FinishTestItemOptions);
   });
 
@@ -240,73 +230,67 @@ function plugin(config: PluginConfig) {
       debug(`${suite.tempId}: Suite '${suite.title}' finished ${suiteStatus}.`);
       return rpClient.finishTestItem(suite.tempId as string, {
         endTime: suite.endTime || rpClient.helpers.now(),
-        status: rpStatus(suiteStatus) as any,
+        status: rpStatus(suiteStatus),
       });
     });
   });
 
   function startTestItem(
     testTitle: string,
-    method: string,
+    method: TEST_ITEM_TYPES,
     parentId: string | null | undefined = null,
     stats: boolean | null = null,
-  ): ClientResponse<unknown> | undefined {
+  ): ClientResponse<StartTestItemResponse> | undefined {
     try {
       const hasStats = stats || (method !== TEST_ITEM_TYPES.STEP);
       return rpClient.startTestItem(
-        {
-          name: testTitle,
-          type: method as any,
-          hasStats,
-        } as StartTestItemOptions,
+        { name: testTitle, type: method, hasStats },
         launchObj?.tempId as string,
         parentId as string,
-      ) as ClientResponse<unknown>;
+      );
     } catch (error) {
-      // Fixes legacy typo `output.err(error)`; see design Risks §.
       output.error(error as any);
       return undefined;
     }
   }
 
   event.dispatcher.on(event.all.result, async () => {
-    // await recorder.promise;
     debug('Finishing launch...');
     if (suiteObj) {
       rpClient.finishTestItem(suiteObj.tempId, {
-        status: suiteStatus as any,
+        status: suiteStatus,
       }).promise;
     }
     if (!process.env.RP_LAUNCH_ID) await finishLaunch();
   });
 
-  function startLaunch(suiteTitle?: string): ClientResponse<unknown> {
+  function startLaunch(suiteTitle?: string): ClientResponse<StartLaunchResponse | StartLaunchOptions> {
     rpClient = new RPClient({
       apiKey: resolved.apiKey,
-      endpoint: resolved.endpoint,
-      project: resolved.project,
+      endpoint: resolved.endpoint as string,
+      project: resolved.project as string,
       launch: resolved.launch,
       debug: resolved.debug,
       restClientConfig: resolved.restClientConfig,
-    } as any);
+    });
 
-    const options: StartLaunchOptions & { id?: string } = {
+    const options: StartLaunchOptions = {
       name: resolved.launch || suiteTitle,
       description: resolved.description,
-      attributes: resolved.attributes as Attribute[],
+      attributes: resolved.attributes,
       rerun: resolved.rerun,
       rerunOf: resolved.rerunOf,
-      mode: resolved.mode as LAUNCH_MODES,
+      mode: resolved.mode,
     };
 
     if (process.env.RP_LAUNCH_ID) {
       options.id = process.env.RP_LAUNCH_ID;
     }
 
-    return rpClient.startLaunch(options) as ClientResponse<unknown>;
+    return rpClient.startLaunch(options);
   }
 
-  async function attachScreenshot(): Promise<ScreenshotFile | undefined> {
+  async function attachScreenshot(): Promise<Attachment | undefined> {
     if (!helper) return undefined;
 
     const fileName = `${rpClient.helpers.now()}.png`;
@@ -317,9 +301,6 @@ function plugin(config: PluginConfig) {
       return undefined;
     }
 
-    // `output_dir` is declared globally by CodeceptJS's bundled typings; the
-    // runtime sets it on `global`, so referencing the ambient identifier
-    // works under `typeof globalThis` without augmentation.
     const content = fs.readFileSync(path.join(output_dir, fileName));
     fs.unlinkSync(path.join(output_dir, fileName));
 
@@ -334,25 +315,23 @@ function plugin(config: PluginConfig) {
     try {
       debug(`${launchObj?.tempId} Finished launch: ${launchStatus}`);
       const launch = rpClient.finishLaunch(launchObj?.tempId as string, {
-        status: launchStatus as any,
+        status: launchStatus,
       });
 
-      const response = (await launch.promise) as { number: number; link: string };
+      const response = await launch.promise;
 
       (output as any).print(` 📋 Report #${response.number} saved ➡`, response.link);
       event.emit('reportportal.result', response);
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.log(error);
       debug(error);
     }
   }
 
-  async function startMetaSteps(step: RpStep): Promise<RpStep | ClientResponse<unknown>> {
+  async function startMetaSteps(step: RpStep): Promise<RpStep | ClientResponse<StartTestItemResponse>> {
     let metaStepObj: any = {};
     const metaSteps = metaStepsToArray(step.metaStep as RpStep | null | undefined);
 
-    // close current metasteps
     for (let j = currentMetaSteps.length - 1; j >= metaSteps.length; j--) {
       await finishStep(currentMetaSteps[j]);
     }
@@ -363,7 +342,6 @@ function plugin(config: PluginConfig) {
         metaStep.tempId = currentMetaSteps[i].tempId;
         continue;
       }
-      // close metasteps other than current
       for (let j = currentMetaSteps.length - 1; j >= Number(i); j--) {
         await finishStep(currentMetaSteps[j]);
         delete currentMetaSteps[j];
@@ -383,10 +361,10 @@ function plugin(config: PluginConfig) {
     }
 
     currentMetaSteps = deepClone(metaSteps);
-    return currentMetaSteps[currentMetaSteps.length - 1] || (testObj as ClientResponse<unknown>);
+    return currentMetaSteps[currentMetaSteps.length - 1] || (testObj as ClientResponse<StartTestItemResponse>);
   }
 
-  function finishStep(step: RpStep | undefined | null): ClientResponse<unknown> | undefined {
+  function finishStep(step: RpStep | undefined | null): ClientResponse | undefined {
     if (!step) return undefined;
     if (!step.tempId) {
       debug(`WARNING: '${step.toString()}' step can't be closed, it has no tempId`);
@@ -396,8 +374,8 @@ function plugin(config: PluginConfig) {
 
     return rpClient.finishTestItem(step.tempId, {
       endTime: rpClient.helpers.now(),
-      status: rpStatus(step.status) as any,
-    }) as ClientResponse<unknown>;
+      status: rpStatus(step.status),
+    });
   }
 
   return {
