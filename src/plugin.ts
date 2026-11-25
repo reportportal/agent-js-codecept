@@ -145,7 +145,7 @@ function plugin(config: PluginConfig) {
     for (const metaStep of currentMetaSteps) {
       if (metaStep) metaStep.status = 'failed';
     }
-    if (step && step.tempId) failedStep = Object.assign({}, step) as RpStep;
+    if (step && step.tempId) failedStep = step;
   });
 
   event.dispatcher.on(event.step.passed, (_step: RpStep, _err: Error) => {
