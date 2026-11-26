@@ -15,16 +15,13 @@
   (previously resolved via transitive hoisting).
 * The default configuration object is no longer mutated across invocations.
 
-### Deprecated
-* Old option names still work, print a deprecation warning, and lose to the new
-  name when both are set:
+### Breaking changes
+* Old option names are no longer supported:
   * `token` → use `apiKey`
   * `projectName` → use `project`
   * `launchName` → use `launch`
   * `launchDescription` → use `description`
   * `launchAttributes` → use `attributes`
-
-### Breaking changes
 * `attributes` now defaults to `[]`.
 * Required fields reported by configuration validation are now `apiKey`,
   `endpoint`, `project`.

@@ -2,27 +2,13 @@
 /* eslint-disable
    global-require,
    import/no-dynamic-require,
+   import/extensions,
    no-restricted-syntax,
    no-await-in-loop,
    no-underscore-dangle
 */
 
-/**
- * Unit tests for EPMRPP-122056:
- *   Update ReportPortal client to 5.6.0 and expose apiKey / proxy /
- *   timeout / retry settings via the modern config surface.
- *
- * These tests exercise the plugin factory (module.exports in index.js)
- * with a stubbed global `codeceptjs` and a mocked
- * `@reportportal/client-javascript`. Everything is deterministic — no
- * timers, no random values, no network.
- */
-
 jest.mock('@reportportal/client-javascript', () => jest.fn());
-
-// --------------------------------------------------------------------------
-// Deterministic mock factories
-// --------------------------------------------------------------------------
 
 const ENV_KEYS = ['RP_API_KEY', 'RP_ENDPOINT', 'RP_PROJECT', 'RP_LAUNCH', 'RP_LAUNCH_ID'];
 
@@ -32,11 +18,6 @@ function clearRpEnv() {
   });
 }
 
-/**
- * Build a fresh `codeceptjs` global stub that records every registered
- * dispatcher handler into a Map keyed by event name. Each test creates
- * its own instance so state cannot leak between cases.
- */
 function makeCodeceptStub() {
   const handlers = new Map();
   const event = {
@@ -86,11 +67,6 @@ function makeCodeceptStub() {
   };
 }
 
-/**
- * Build a deterministic RPClient implementation whose instance records
- * every call to startLaunch / finishLaunch / etc. All promises resolve
- * synchronously so no fake timers are needed.
- */
 function makeRpClientImpl() {
   const launchResponse = { id: 'launch-1', link: 'http://rp.local/launch/1', number: 1 };
   return (options) => ({
@@ -116,10 +92,6 @@ function makeRpClientImpl() {
   });
 }
 
-/**
- * Reset the module registry, install fresh codeceptjs + RPClient mocks,
- * then require() the plugin factory. Returns everything a test needs.
- */
 function loadPlugin() {
   jest.resetModules();
   const ctx = makeCodeceptStub();
@@ -130,14 +102,10 @@ function loadPlugin() {
   const RPClient = require('@reportportal/client-javascript');
   RPClient.mockImplementation(makeRpClientImpl());
 
-  const factory = require('../index');
+  const factory = require('../src');
   return { ...ctx, RPClient, factory };
 }
 
-/**
- * Register the plugin against a fresh mock environment and (optionally)
- * fire the registered `event.all.before` handler so startLaunch runs.
- */
 async function registerAndStart(config, { fireBefore = true } = {}) {
   const ctx = loadPlugin();
   const api = ctx.factory(config);
@@ -150,11 +118,7 @@ async function registerAndStart(config, { fireBefore = true } = {}) {
   return { ...ctx, api };
 }
 
-// --------------------------------------------------------------------------
-// Tests
-// --------------------------------------------------------------------------
-
-describe('agent-js-codecept — EPMRPP-122056 config resolution', () => {
+describe('config resolution', () => {
   beforeEach(() => {
     clearRpEnv();
   });
@@ -163,10 +127,6 @@ describe('agent-js-codecept — EPMRPP-122056 config resolution', () => {
     clearRpEnv();
     delete global.codeceptjs;
   });
-
-  // ------------------------------------------------------------------------
-  // Required-field validation (AC #2, AC #6, deprecated names)
-  // ------------------------------------------------------------------------
 
   describe('required-field validation', () => {
     test('throws when apiKey is missing', () => {
@@ -202,21 +162,7 @@ describe('agent-js-codecept — EPMRPP-122056 config resolution', () => {
       const { factory } = loadPlugin();
       expect(() => factory({ apiKey: 'k', endpoint: 'https://rp/api/v1', project: 'proj' })).not.toThrow();
     });
-
-    test('deprecated "token" satisfies the apiKey check', () => {
-      const { factory } = loadPlugin();
-      expect(() => factory({ token: 'legacy-token', endpoint: 'https://rp/api/v1', project: 'proj' })).not.toThrow();
-    });
-
-    test('deprecated "projectName" satisfies the project check', () => {
-      const { factory } = loadPlugin();
-      expect(() => factory({ apiKey: 'k', endpoint: 'https://rp/api/v1', projectName: 'legacy-project' })).not.toThrow();
-    });
   });
-
-  // ------------------------------------------------------------------------
-  // Env-variable precedence (AC #4)
-  // ------------------------------------------------------------------------
 
   describe('environment-variable fallbacks', () => {
     test('RP_API_KEY alone satisfies the apiKey required-field check', () => {
@@ -289,16 +235,6 @@ describe('agent-js-codecept — EPMRPP-122056 config resolution', () => {
       expect(RPClient.mock.calls[0][0].launch).toBe('env-launch');
     });
 
-    test('a deprecated name in the config also beats the env var', async () => {
-      process.env.RP_API_KEY = 'env-key';
-      const { RPClient } = await registerAndStart({
-        token: 'legacy-token',
-        endpoint: 'https://rp/api/v1',
-        project: 'proj',
-      });
-      expect(RPClient.mock.calls[0][0].apiKey).toBe('legacy-token');
-    });
-
     test('empty-string env var is treated as unset — explicit config wins', async () => {
       process.env.RP_LAUNCH = '';
       const { RPClient } = await registerAndStart({
@@ -326,10 +262,6 @@ describe('agent-js-codecept — EPMRPP-122056 config resolution', () => {
     });
   });
 
-  // ------------------------------------------------------------------------
-  // restClientConfig passthrough (AC #3)
-  // ------------------------------------------------------------------------
-
   describe('restClientConfig passthrough', () => {
     test('is forwarded to RPClient as the same object (proxy/timeout/retry)', async () => {
       const restClientConfig = {
@@ -345,9 +277,7 @@ describe('agent-js-codecept — EPMRPP-122056 config resolution', () => {
         restClientConfig,
       });
       const args = RPClient.mock.calls[0][0];
-      // Identity: no shaping / cloning / validation inside the agent.
       expect(args.restClientConfig).toBe(restClientConfig);
-      // Value: nothing was dropped or renamed.
       expect(args.restClientConfig).toEqual({
         proxy: 'http://corp-proxy:8080',
         timeout: 5000,
@@ -366,23 +296,7 @@ describe('agent-js-codecept — EPMRPP-122056 config resolution', () => {
     });
   });
 
-  // ------------------------------------------------------------------------
-  // RPClient construction surface (AC #2 / #6)
-  // ------------------------------------------------------------------------
-
-  describe('RPClient construction uses only the modern option surface', () => {
-    test('legacy "token" passed by the user is never forwarded to the client', async () => {
-      const { RPClient } = await registerAndStart({
-        apiKey: 'modern-key',
-        endpoint: 'https://rp/api/v1',
-        project: 'proj',
-        token: 'legacy-token-should-be-ignored',
-      });
-      const args = RPClient.mock.calls[0][0];
-      expect(args).not.toHaveProperty('token');
-      expect(args.apiKey).toBe('modern-key');
-    });
-
+  describe('RPClient construction', () => {
     test('RPClient receives apiKey, endpoint, project, launch, debug and restClientConfig', async () => {
       const { RPClient } = await registerAndStart({
         apiKey: 'k',
@@ -410,10 +324,6 @@ describe('agent-js-codecept — EPMRPP-122056 config resolution', () => {
     });
   });
 
-  // ------------------------------------------------------------------------
-  // startLaunch options + defaults (AC #5 / #6)
-  // ------------------------------------------------------------------------
-
   describe('startLaunch options and defaults', () => {
     test('attributes defaults to an empty array', async () => {
       const { RPClient } = await registerAndStart({
@@ -426,17 +336,6 @@ describe('agent-js-codecept — EPMRPP-122056 config resolution', () => {
       expect(rp.startLaunch.mock.calls[0][0].attributes).toEqual([]);
     });
 
-    test('deprecated launchAttributes is used as attributes', async () => {
-      const { RPClient } = await registerAndStart({
-        apiKey: 'k',
-        endpoint: 'https://rp/api/v1',
-        project: 'proj',
-        launchAttributes: [{ key: 'legacy', value: 'yes' }],
-      });
-      const launchOpts = RPClient.mock.results[0].value.startLaunch.mock.calls[0][0];
-      expect(launchOpts.attributes).toEqual([{ key: 'legacy', value: 'yes' }]);
-    });
-
     test('attributes passed explicitly are forwarded unchanged', async () => {
       const attributes = [{ key: 'env', value: 'prod' }, { value: 'smoke' }];
       const { RPClient } = await registerAndStart({
@@ -447,17 +346,6 @@ describe('agent-js-codecept — EPMRPP-122056 config resolution', () => {
       });
       const launchOpts = RPClient.mock.results[0].value.startLaunch.mock.calls[0][0];
       expect(launchOpts.attributes).toEqual([{ key: 'env', value: 'prod' }, { value: 'smoke' }]);
-    });
-
-    test('deprecated launchDescription is used as description', async () => {
-      const { RPClient } = await registerAndStart({
-        apiKey: 'k',
-        endpoint: 'https://rp/api/v1',
-        project: 'proj',
-        launchDescription: 'legacy',
-      });
-      const launchOpts = RPClient.mock.results[0].value.startLaunch.mock.calls[0][0];
-      expect(launchOpts.description).toBe('legacy');
     });
 
     test('description, mode, rerun, rerunOf come from the resolved config', async () => {
@@ -487,16 +375,6 @@ describe('agent-js-codecept — EPMRPP-122056 config resolution', () => {
       expect(launchOpts.mode).toBe('DEFAULT');
     });
 
-    test('deprecated launchName is used as launch', async () => {
-      const { RPClient } = await registerAndStart({
-        apiKey: 'k',
-        endpoint: 'https://rp/api/v1',
-        project: 'proj',
-        launchName: 'legacy-launch',
-      });
-      expect(RPClient.mock.calls[0][0].launch).toBe('legacy-launch');
-    });
-
     test('RP_LAUNCH_ID env attaches id to the launch options (merge-launch wiring)', async () => {
       process.env.RP_LAUNCH_ID = 'external-launch-123';
       const { RPClient } = await registerAndStart({
@@ -519,60 +397,8 @@ describe('agent-js-codecept — EPMRPP-122056 config resolution', () => {
     });
   });
 
-  // ------------------------------------------------------------------------
-  // Non-mutation of module-level defaults (AC #5)
-  // ------------------------------------------------------------------------
-
-  describe('deprecated option names', () => {
-    let warn;
-    beforeEach(() => {
-      warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
-    });
-    afterEach(() => {
-      warn.mockRestore();
-    });
-
-    test('each deprecated name warns with its replacement', () => {
-      const { factory } = loadPlugin();
-      factory({
-        token: 't',
-        endpoint: 'https://rp/api/v1',
-        projectName: 'p',
-        launchName: 'l',
-        launchDescription: 'd',
-        launchAttributes: [],
-      });
-      expect(warn.mock.calls.map((c) => c[0])).toEqual([
-        "Option 'token' is deprecated. Use 'apiKey' instead.",
-        "Option 'projectName' is deprecated. Use 'project' instead.",
-        "Option 'launchName' is deprecated. Use 'launch' instead.",
-        "Option 'launchDescription' is deprecated. Use 'description' instead.",
-        "Option 'launchAttributes' is deprecated. Use 'attributes' instead.",
-      ]);
-    });
-
-    test('modern names produce no warning', () => {
-      const { factory } = loadPlugin();
-      factory({ apiKey: 'k', endpoint: 'https://rp/api/v1', project: 'proj' });
-      expect(warn).not.toHaveBeenCalled();
-    });
-
-    test('the modern name wins when both are set', async () => {
-      const { RPClient } = await registerAndStart({
-        apiKey: 'modern-key',
-        token: 'legacy-token',
-        endpoint: 'https://rp/api/v1',
-        project: 'proj',
-        projectName: 'legacy-project',
-      });
-      expect(RPClient.mock.calls[0][0].apiKey).toBe('modern-key');
-      expect(RPClient.mock.calls[0][0].project).toBe('proj');
-    });
-  });
-
   describe('config resolution is pure (no module-level mutation)', () => {
     test('attributes from one factory call do not leak into the next', async () => {
-      // First call: non-empty attributes.
       const first = await registerAndStart({
         apiKey: 'k',
         endpoint: 'https://rp/api/v1',
@@ -582,7 +408,6 @@ describe('agent-js-codecept — EPMRPP-122056 config resolution', () => {
       const firstOpts = first.RPClient.mock.results[0].value.startLaunch.mock.calls[0][0];
       expect(firstOpts.attributes).toEqual([{ key: 'first', value: '1' }]);
 
-      // Second call: no attributes — must get default [], not the first call's value.
       const second = await registerAndStart({
         apiKey: 'k',
         endpoint: 'https://rp/api/v1',
