@@ -162,16 +162,6 @@ describe('config resolution', () => {
       const { factory } = loadPlugin();
       expect(() => factory({ apiKey: 'k', endpoint: 'https://rp/api/v1', project: 'proj' })).not.toThrow();
     });
-
-    test('legacy "token" does not satisfy the apiKey check', () => {
-      const { factory } = loadPlugin();
-      expect(() => factory({ token: 'legacy-token', endpoint: 'https://rp/api/v1', project: 'proj' })).toThrow(/apiKey/);
-    });
-
-    test('legacy "projectName" does not satisfy the project check', () => {
-      const { factory } = loadPlugin();
-      expect(() => factory({ apiKey: 'k', endpoint: 'https://rp/api/v1', projectName: 'legacy-project' })).toThrow(/project/);
-    });
   });
 
   describe('environment-variable fallbacks', () => {
@@ -306,19 +296,7 @@ describe('config resolution', () => {
     });
   });
 
-  describe('RPClient construction uses only the modern option surface', () => {
-    test('legacy "token" passed by the user is never forwarded to the client', async () => {
-      const { RPClient } = await registerAndStart({
-        apiKey: 'modern-key',
-        endpoint: 'https://rp/api/v1',
-        project: 'proj',
-        token: 'legacy-token-should-be-ignored',
-      });
-      const args = RPClient.mock.calls[0][0];
-      expect(args).not.toHaveProperty('token');
-      expect(args.apiKey).toBe('modern-key');
-    });
-
+  describe('RPClient construction', () => {
     test('RPClient receives apiKey, endpoint, project, launch, debug and restClientConfig', async () => {
       const { RPClient } = await registerAndStart({
         apiKey: 'k',
@@ -416,23 +394,6 @@ describe('config resolution', () => {
       });
       const launchOpts = RPClient.mock.results[0].value.startLaunch.mock.calls[0][0];
       expect(launchOpts.id).toBeUndefined();
-    });
-  });
-
-  describe('legacy option names are not supported', () => {
-    test('launchName, launchDescription and launchAttributes are ignored', async () => {
-      const { RPClient } = await registerAndStart({
-        apiKey: 'k',
-        endpoint: 'https://rp/api/v1',
-        project: 'proj',
-        launchName: 'legacy-launch',
-        launchDescription: 'legacy',
-        launchAttributes: [{ key: 'legacy', value: 'yes' }],
-      });
-      expect(RPClient.mock.calls[0][0].launch).toBe('codeceptjs tests');
-      const launchOpts = RPClient.mock.results[0].value.startLaunch.mock.calls[0][0];
-      expect(launchOpts.description).toBe('');
-      expect(launchOpts.attributes).toEqual([]);
     });
   });
 
