@@ -37,6 +37,7 @@
   },
   "scripts": {
     "build": "npm run clean && tsc",
+    "codegraph": "bash scripts/codegraph.sh",
     "clean": "rimraf ./build",
     "test": "jest",
     "lint": "eslint \"src/**/*.{ts,js}\" \"__tests__/**/*.{ts,js}\"",
